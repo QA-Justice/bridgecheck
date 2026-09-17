@@ -138,6 +138,65 @@ textarea:focus-visible {
   font-weight: 700;
 }
 
+.config-status {
+  height: 36px;
+  min-width: 180px;
+  max-width: 300px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 9px;
+  color: #aeb9b3;
+  background: #202a25;
+  border: 1px solid #46534d;
+  border-radius: 4px;
+}
+
+.config-status > svg {
+  flex: 0 0 auto;
+  color: #8f9c95;
+}
+
+.config-status > span {
+  flex: 0 0 auto;
+  color: #8f9c95;
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.config-status > strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #d4ddd8;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 10px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.config-status > em {
+  flex: 0 0 auto;
+  padding: 2px 4px;
+  color: #f2c46d;
+  background: #3b3323;
+  border: 1px solid #665433;
+  border-radius: 3px;
+  font-size: 8px;
+  font-style: normal;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.config-status.is-imported {
+  border-color: #5d806f;
+}
+
+.config-status.is-imported > svg {
+  color: #b8e985;
+}
+
 .icon-button,
 .primary-button,
 .secondary-button,
@@ -1448,7 +1507,20 @@ input[type="checkbox"] {
 
 @media (max-width: 600px) {
   .app-header {
+    flex-wrap: wrap;
+    gap: 8px;
     padding: 10px 14px;
+  }
+
+  .header-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .config-status {
+    min-width: 0;
+    max-width: calc(100% - 88px);
+    margin-right: auto;
   }
 
   .workflow-nav {

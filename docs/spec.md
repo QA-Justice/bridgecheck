@@ -61,6 +61,8 @@ Bridgecheck validates data parity while an API is migrated from SOAP/XML to REST
 - Suggestions show their confidence and scoring reasons but do not affect comparison or exported config until individually accepted.
 - Accepted suggestions become ordinary mappings with `Exact` comparison and never select a Join Key automatically.
 - Manual and imported mappings are never replaced by suggestions.
+- The header shows `Config: Not imported`, the imported filename, and `Modified` after accepted mapping changes.
+- Editing or re-parsing response data does not mark an imported config as modified; resetting sample data clears the imported-config status.
 
 ## Result details
 

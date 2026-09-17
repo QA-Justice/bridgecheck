@@ -6,7 +6,9 @@ import {
   Check,
   ChevronRight,
   Download,
+  FileCheck2,
   FileJson,
+  FileQuestion,
   FileUp,
   Link2,
   Play,
@@ -60,6 +62,11 @@ interface MappingColumnResize {
   column: MappingFieldColumn
   startX: number
   startWidth: number
+}
+
+interface ImportedConfigState {
+  fileName: string
+  modified: boolean
 }
 
 const comparisonOptions: { value: ComparisonMode; label: string }[] = [
@@ -464,6 +471,7 @@ function App() {
   const [activePairId, setActivePairId] = useState<string | null>(null)
   const [suggestions, setSuggestions] = useState<PairSuggestion[]>([])
   const [suggestionAttempted, setSuggestionAttempted] = useState(false)
+  const [importedConfig, setImportedConfig] = useState<ImportedConfigState | null>(null)
   const [results, setResults] = useState<ComparisonResult[]>([])
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL')
   const [fieldStatusFilter, setFieldStatusFilter] = useState<FieldStatusFilter>('ALL')
@@ -553,6 +561,10 @@ function App() {
     setMappingFieldColumnWidth(column, currentWidth + (event.key === 'ArrowRight' ? 24 : -24))
   }
 
+  function markImportedConfigModified(): void {
+    setImportedConfig((current) => current ? { ...current, modified: true } : null)
+  }
+
   function updateSoapInput(value: string): void {
     setSoapInput(value)
     if (mappingSource === 'sample') {
@@ -625,6 +637,7 @@ function App() {
     value: FieldMapping[K],
   ): void {
     setMappingSource('manual')
+    markImportedConfigModified()
     if (property === 'soapPath') {
       setSuggestions((current) => current.filter((suggestion) => suggestion.soapPath !== value))
     }
@@ -653,6 +666,7 @@ function App() {
     if (update.created) {
       const mapping = update.mappings.at(-1)
       setMappingSource('manual')
+      markImportedConfigModified()
       if (mapping) {
         setSuggestions((current) => current.filter((suggestion) => (
           suggestion.soapPath !== mapping.soapPath && suggestion.restPath !== mapping.restPath
@@ -685,6 +699,7 @@ function App() {
     setSuggestions(nextSuggestions)
     setSuggestionAttempted(nextSuggestions.length > 0)
     setMappingSource('manual')
+    markImportedConfigModified()
     setActivePairId(id)
     setResults([])
   }
@@ -698,6 +713,7 @@ function App() {
   function clearPairs(): void {
     setMappings([])
     setMappingSource('manual')
+    markImportedConfigModified()
     setPendingField(null)
     setActivePairId(null)
     setResults([])
@@ -707,6 +723,7 @@ function App() {
     const soapPath = soapFields[0] ?? ''
     const restPath = restFields[0] ?? ''
     setMappingSource('manual')
+    markImportedConfigModified()
     setSuggestions((current) => current.filter((suggestion) => (
       suggestion.soapPath !== soapPath && suggestion.restPath !== restPath
     )))
@@ -726,6 +743,7 @@ function App() {
 
   function removeMapping(id: string): void {
     setMappingSource('manual')
+    markImportedConfigModified()
     setMappings((current) => current.filter((mapping) => mapping.id !== id))
     if (activePairId === id) setActivePairId(null)
     setResults([])
@@ -764,6 +782,7 @@ function App() {
         }
         setMappings(config.mappings)
         setMappingSource('imported')
+        setImportedConfig({ fileName: file.name, modified: false })
         setPendingField(null)
         setActivePairId(null)
         setSuggestions([])
@@ -820,6 +839,7 @@ function App() {
     setRestParsed(false)
     setMappings(sampleMappings)
     setMappingSource('sample')
+    setImportedConfig(null)
     setPendingField(null)
     setActivePairId(null)
     setSuggestions([])
@@ -849,6 +869,21 @@ function App() {
 
         <div className="header-actions">
           <span className="local-badge"><ShieldCheck size={14} /> Local only</span>
+          <div
+            className={'config-status' + (importedConfig ? ' is-imported' : '')}
+            role="status"
+            aria-label={importedConfig
+              ? 'Config imported: ' + importedConfig.fileName + (importedConfig.modified ? ', modified' : '')
+              : 'Config not imported'}
+            title={importedConfig
+              ? importedConfig.fileName + (importedConfig.modified ? ' · Modified' : '')
+              : 'No configuration file imported'}
+          >
+            {importedConfig ? <FileCheck2 size={15} /> : <FileQuestion size={15} />}
+            <span>Config</span>
+            <strong>{importedConfig?.fileName ?? 'Not imported'}</strong>
+            {importedConfig?.modified && <em>Modified</em>}
+          </div>
           <button className="icon-button" type="button" title="Reset sample data" onClick={resetSamples}>
             <RotateCcw size={17} />
           </button>

@@ -14,6 +14,8 @@ describe('App parsing workflow', () => {
     expect(markup).toContain('Parse JSON')
     expect(markup).toContain('Review mappings')
     expect(markup).toContain('Parse both responses to pair fields in the Pivot Previews.')
+    expect(markup).toContain('Config not imported')
+    expect(markup).toContain('Not imported')
     expect(markup).toContain('v' + packageJson.version)
   })
 })

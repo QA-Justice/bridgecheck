@@ -24,6 +24,7 @@ Current MVP version: `0.5.1`.
 - Filter result details to mismatches without hiding matches from CSV exports
 - Export every field result and record-status diagnostic as CSV
 - Import and export reusable mapping configuration
+- Show imported configuration filename and modification status in the app header
 
 ## Development
 
