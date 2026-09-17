@@ -1,0 +1,46 @@
+# Bridgecheck
+
+Bridgecheck validates data parity while an API is migrated from SOAP/XML to REST/JSON. Everything runs locally in the browser.
+
+Current MVP version: `0.4.1`.
+
+## Features
+
+- Paste or upload SOAP/XML and REST/JSON responses
+- Parse SOAP and REST responses independently with explicit panel actions
+- Fully flatten nested objects and arrays without manual path selection
+- Use dot notation for objects and index notation for arrays
+- Pivot wide previews so fields become rows, with horizontal scrolling for long paths
+- Resize SOAP and REST mapping columns by dragging their header boundaries
+- Search SOAP and REST field paths by case-insensitive partial text
+- Pair SOAP and REST fields directly from searchable Pivot Previews
+- Map fields and choose explicit comparison modes
+- Keep manual and imported mappings across response edits while sample mappings stay sample-only
+- Flag mapped fields that do not exist in the parsed responses
+- Match records with single or composite join keys
+- Show every enabled field with field-level status and record summaries
+- Show match and mismatch records in the Results screen
+- Filter result details to mismatches without hiding matches from CSV exports
+- Export every field result and record-status diagnostic as CSV
+- Import and export reusable mapping configuration
+
+## Development
+
+~~~bash
+npm install
+npm run dev
+~~~
+
+## Verification
+
+~~~bash
+npm test
+npm run lint
+npm run build
+~~~
+
+## GitHub Pages
+
+The included workflow builds and deploys the `dist` directory on pushes to `main`. In the repository settings, set Pages source to **GitHub Actions**.
+
+See [docs/spec.md](docs/spec.md) for comparison rules and MVP boundaries.
