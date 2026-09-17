@@ -2,7 +2,7 @@
 
 Bridgecheck validates data parity while an API is migrated from SOAP/XML to REST/JSON. Everything runs locally in the browser.
 
-Current MVP version: `0.5.0`.
+Current MVP version: `0.5.1`.
 
 ## Features
 

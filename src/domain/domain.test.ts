@@ -166,6 +166,33 @@ describe('preview field pairing', () => {
 
     expect(suggestions).toEqual([])
   })
+
+  it('suggests differently named fields when distinctive sample values match', () => {
+    const suggestions = suggestFieldPairs(
+      [{ legacyReference: 'A-901', legacyLabel: 'Seoul' }],
+      [{ resourceCode: 'A-901', title: 'Seoul' }],
+      [],
+    )
+
+    expect(suggestions).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        soapPath: 'legacyReference',
+        restPath: 'resourceCode',
+      }),
+      expect.objectContaining({
+        soapPath: 'legacyLabel',
+        restPath: 'title',
+      }),
+    ]))
+  })
+
+  it('does not recommend a pair from one short common value alone', () => {
+    expect(suggestFieldPairs(
+      [{ legacyFlag: 'A' }],
+      [{ state: 'A' }],
+      [],
+    )).toEqual([])
+  })
 })
 
 describe('comparison', () => {

@@ -139,6 +139,31 @@ function valueAgreement(left: ComparableScalar[], right: ComparableScalar[]): nu
   return matches / Math.max(left.length, right.length)
 }
 
+function individualValueStrength(value: ComparableScalar): number {
+  const normalized = normalizedValue(value)
+  if (valueKind(value) === 'boolean') return 0.2
+  if (valueKind(value) === 'number') {
+    const numeric = Number(normalized)
+    return numeric === 0 || numeric === 1 ? 0.25 : 0.75
+  }
+  if (normalized.length <= 2) return 0.25
+  if (normalized.length <= 4) return 0.55
+  return 0.8
+}
+
+function valueEvidenceStrength(values: ComparableScalar[]): number {
+  if (values.length === 0) return 0
+  const uniqueValues = [...new Map<string, ComparableScalar>(
+    values.map((value) => [normalizedValue(value), value] as const),
+  ).values()]
+  const averageStrength = uniqueValues.reduce<number>(
+    (sum, value) => sum + individualValueStrength(value),
+    0,
+  ) / uniqueValues.length
+  const diversityBonus = values.length > 1 && uniqueValues.length > 1 ? 0.15 : 0
+  return Math.min(1, averageStrength + diversityBonus)
+}
+
 function indexRelationship(left: string, right: string): 'match' | 'mismatch' | 'none' {
   const indexes = (path: string) => [...path.matchAll(/\[(\d+)\]/g)].map((match) => match[1])
   const leftIndexes = indexes(left)
@@ -166,21 +191,33 @@ function scorePair(
   const restValues = valuesFor(restRows, restPath)
   const typeScore = typeCompatibility(soapValues, restValues)
   const valueScore = valueAgreement(soapValues, restValues)
+  const valueEvidence = valueScore * Math.min(
+    valueEvidenceStrength(soapValues),
+    valueEvidenceStrength(restValues),
+  )
   const indexAdjustment = indexRelation === 'match' ? 0.06 : 0
-  const score = Math.max(0, Math.min(1,
+  const lexicalScore = Math.max(0, Math.min(1,
     leafScore * 0.45
       + pathScore * 0.17
       + typeScore * 0.12
       + valueScore * 0.2
       + indexAdjustment,
   ))
+  const valueDrivenScore = Math.max(0, Math.min(1,
+    valueEvidence * 0.55
+      + typeScore * 0.15
+      + pathScore * 0.15
+      + leafScore * 0.05
+      + (indexRelation === 'match' ? 0.1 : 0),
+  ))
+  const score = Math.max(lexicalScore, valueDrivenScore)
 
-  if (score < 0.68 || Math.max(leafScore, pathScore, valueScore) < 0.5) return null
+  if (score < 0.55 || Math.max(leafScore, pathScore, valueEvidence) < 0.5) return null
 
   const reasons = [
     leafScore >= 0.75 ? 'similar field name' : '',
     pathScore >= 0.45 ? 'similar path' : '',
-    valueScore >= 0.5 ? 'matching sample values' : '',
+    valueEvidence >= 0.5 ? 'distinctive matching values' : '',
     typeScore === 1 ? 'compatible type' : '',
     indexRelation === 'match' ? 'matching array position' : '',
   ].filter(Boolean)
@@ -206,18 +243,33 @@ export function suggestFieldPairs(
   const restPaths = [...new Set(restRows.flatMap((row) => Object.keys(row)))]
     .filter((path) => !usedRestPaths.has(path))
   const restPathsByLeafToken = new Map<string, Set<string>>()
+  const restPathsByPathToken = new Map<string, Set<string>>()
+  const restPathsByValue = new Map<string, Set<string>>()
+  const addToIndex = (index: Map<string, Set<string>>, key: string, path: string) => {
+    const paths = index.get(key) ?? new Set<string>()
+    paths.add(path)
+    index.set(key, paths)
+  }
   restPaths.forEach((path) => {
     leafTokens(path).forEach((token) => {
-      const paths = restPathsByLeafToken.get(token) ?? new Set<string>()
-      paths.add(path)
-      restPathsByLeafToken.set(token, paths)
+      addToIndex(restPathsByLeafToken, token, path)
     })
+    tokensFor(path).forEach((token) => addToIndex(restPathsByPathToken, token, path))
+    valuesFor(restRows, path).forEach((value) => (
+      addToIndex(restPathsByValue, normalizedValue(value), path)
+    ))
   })
   const candidates = soapPaths
     .flatMap((soapPath) => {
       const candidatePaths = new Set<string>()
       leafTokens(soapPath).forEach((token) => {
         restPathsByLeafToken.get(token)?.forEach((path) => candidatePaths.add(path))
+      })
+      tokensFor(soapPath).forEach((token) => {
+        restPathsByPathToken.get(token)?.forEach((path) => candidatePaths.add(path))
+      })
+      valuesFor(soapRows, soapPath).forEach((value) => {
+        restPathsByValue.get(normalizedValue(value))?.forEach((path) => candidatePaths.add(path))
       })
       return [...candidatePaths].map((restPath) => (
         scorePair(soapRows, restRows, soapPath, restPath)
