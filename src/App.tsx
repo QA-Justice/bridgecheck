@@ -14,6 +14,7 @@ import {
   RotateCcw,
   Search,
   ShieldCheck,
+  Sparkles,
   Rows3,
   Table2,
   Trash2,
@@ -24,8 +25,8 @@ import {
 import './App.css'
 import { compareRows } from './domain/compare'
 import { clampMappingFieldWidth, DEFAULT_MAPPING_FIELD_WIDTH } from './domain/layout'
-import { applyFieldSelection, mappingForField } from './domain/pairing'
-import type { FieldSelection, MappingSide } from './domain/pairing'
+import { applyFieldSelection, mappingForField, suggestFieldPairs } from './domain/pairing'
+import type { FieldSelection, MappingSide, PairSuggestion } from './domain/pairing'
 import { parseJson, parseXml } from './domain/parse'
 import { collectFields, filterFieldPaths, pivotRows, rowsFromDocument } from './domain/rows'
 import type {
@@ -461,6 +462,8 @@ function App() {
   const [mappingSource, setMappingSource] = useState<MappingSource>('sample')
   const [pendingField, setPendingField] = useState<FieldSelection | null>(null)
   const [activePairId, setActivePairId] = useState<string | null>(null)
+  const [suggestions, setSuggestions] = useState<PairSuggestion[]>([])
+  const [suggestionAttempted, setSuggestionAttempted] = useState(false)
   const [results, setResults] = useState<ComparisonResult[]>([])
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL')
   const [fieldStatusFilter, setFieldStatusFilter] = useState<FieldStatusFilter>('ALL')
@@ -560,6 +563,8 @@ function App() {
     setSoapParsed(false)
     setPendingField(null)
     setActivePairId(null)
+    setSuggestions([])
+    setSuggestionAttempted(false)
     setResults([])
     setError('')
   }
@@ -574,6 +579,8 @@ function App() {
     setRestParsed(false)
     setPendingField(null)
     setActivePairId(null)
+    setSuggestions([])
+    setSuggestionAttempted(false)
     setResults([])
     setError('')
   }
@@ -582,11 +589,15 @@ function App() {
     try {
       setSoapRows(rowsFromDocument(parseXml(soapInput)))
       setSoapParsed(true)
+      setSuggestions([])
+      setSuggestionAttempted(false)
       setResults([])
       setError('')
     } catch (parseError) {
       setSoapRows([])
       setSoapParsed(false)
+      setSuggestions([])
+      setSuggestionAttempted(false)
       setError(parseError instanceof Error ? parseError.message : 'Unable to parse SOAP response.')
     }
   }
@@ -595,11 +606,15 @@ function App() {
     try {
       setRestRows(rowsFromDocument(parseJson(restInput)))
       setRestParsed(true)
+      setSuggestions([])
+      setSuggestionAttempted(false)
       setResults([])
       setError('')
     } catch (parseError) {
       setRestRows([])
       setRestParsed(false)
+      setSuggestions([])
+      setSuggestionAttempted(false)
       setError(parseError instanceof Error ? parseError.message : 'Unable to parse REST response.')
     }
   }
@@ -610,6 +625,12 @@ function App() {
     value: FieldMapping[K],
   ): void {
     setMappingSource('manual')
+    if (property === 'soapPath') {
+      setSuggestions((current) => current.filter((suggestion) => suggestion.soapPath !== value))
+    }
+    if (property === 'restPath') {
+      setSuggestions((current) => current.filter((suggestion) => suggestion.restPath !== value))
+    }
     setMappings((current) => current.map((mapping) => {
       if (mapping.id !== id) return mapping
       const next = { ...mapping, [property]: value }
@@ -629,8 +650,49 @@ function App() {
     setMappings(update.mappings)
     setPendingField(update.pending)
     setActivePairId(update.activePairId)
-    if (update.created) setMappingSource('manual')
+    if (update.created) {
+      const mapping = update.mappings.at(-1)
+      setMappingSource('manual')
+      if (mapping) {
+        setSuggestions((current) => current.filter((suggestion) => (
+          suggestion.soapPath !== mapping.soapPath && suggestion.restPath !== mapping.restPath
+        )))
+      }
+    }
     setResults([])
+  }
+
+  function generateSuggestions(): void {
+    const nextSuggestions = suggestFieldPairs(soapRows, restRows, mappings)
+    setSuggestions(nextSuggestions)
+    setSuggestionAttempted(true)
+    setPendingField(null)
+    setActivePairId(null)
+  }
+
+  function acceptSuggestion(suggestion: PairSuggestion): void {
+    const id = crypto.randomUUID()
+    setMappings((current) => [...current, {
+      id,
+      soapPath: suggestion.soapPath,
+      restPath: suggestion.restPath,
+      displayName: '',
+      comparison: 'exact',
+      include: true,
+      joinKey: false,
+    }])
+    const nextSuggestions = suggestions.filter((candidate) => candidate !== suggestion)
+    setSuggestions(nextSuggestions)
+    setSuggestionAttempted(nextSuggestions.length > 0)
+    setMappingSource('manual')
+    setActivePairId(id)
+    setResults([])
+  }
+
+  function dismissSuggestion(suggestion: PairSuggestion): void {
+    const nextSuggestions = suggestions.filter((candidate) => candidate !== suggestion)
+    setSuggestions(nextSuggestions)
+    setSuggestionAttempted(nextSuggestions.length > 0)
   }
 
   function clearPairs(): void {
@@ -642,13 +704,18 @@ function App() {
   }
 
   function addMapping(): void {
+    const soapPath = soapFields[0] ?? ''
+    const restPath = restFields[0] ?? ''
     setMappingSource('manual')
+    setSuggestions((current) => current.filter((suggestion) => (
+      suggestion.soapPath !== soapPath && suggestion.restPath !== restPath
+    )))
     setMappings((current) => [
       ...current,
       {
         id: crypto.randomUUID(),
-        soapPath: soapFields[0] ?? '',
-        restPath: restFields[0] ?? '',
+        soapPath,
+        restPath,
         displayName: '',
         comparison: 'exact',
         include: true,
@@ -699,6 +766,8 @@ function App() {
         setMappingSource('imported')
         setPendingField(null)
         setActivePairId(null)
+        setSuggestions([])
+        setSuggestionAttempted(false)
         setResults([])
         setError('')
       } catch (configError) {
@@ -753,6 +822,8 @@ function App() {
     setMappingSource('sample')
     setPendingField(null)
     setActivePairId(null)
+    setSuggestions([])
+    setSuggestionAttempted(false)
     setSoapFieldColumnWidth(DEFAULT_MAPPING_FIELD_WIDTH)
     setRestFieldColumnWidth(DEFAULT_MAPPING_FIELD_WIDTH)
     setResults([])
@@ -812,7 +883,9 @@ function App() {
               className={'workflow-item ' + (activeTab === tab ? 'is-active' : '')}
               type="button"
               onClick={() => setActiveTab(tab)}
-              disabled={tab !== 'data' && (!bothResponsesParsed || mappings.length === 0)}
+              disabled={tab !== 'data' && (
+                !bothResponsesParsed || (tab === 'results' && mappings.length === 0)
+              )}
             >
               <span>{number}</span>
               {label}
@@ -841,7 +914,7 @@ function App() {
               <button
                 className="primary-button"
                 type="button"
-                disabled={!bothResponsesParsed || mappings.length === 0}
+                disabled={!bothResponsesParsed}
                 onClick={() => setActiveTab('mapping')}
               >
                 Review mappings <ChevronRight size={17} />
@@ -860,7 +933,7 @@ function App() {
                 ) : mappings.length > 0 ? (
                   <span><b>{mappings.length} field {mappings.length === 1 ? 'pair' : 'pairs'}</b> ready to review</span>
                 ) : (
-                  <span>Select a field in either Pivot Preview, then select its matching field.</span>
+                  <span>Select fields manually, or continue to Mapping to generate suggestions.</span>
                 )}
               </div>
               <div className="pairing-status-actions">
@@ -921,9 +994,14 @@ function App() {
                 <span className="eyebrow">Field rules</span>
                 <h1>Map fields for validation</h1>
               </div>
-              <button className="primary-button" type="button" onClick={runComparison}>
-                <Play size={16} fill="currentColor" /> Run comparison
-              </button>
+              <div className="mapping-actions">
+                <button className="secondary-button" type="button" onClick={generateSuggestions}>
+                  <Sparkles size={16} /> Suggest pairs
+                </button>
+                <button className="primary-button" type="button" onClick={runComparison}>
+                  <Play size={16} fill="currentColor" /> Run comparison
+                </button>
+              </div>
             </div>
 
             <div className="mapping-meta">
@@ -935,6 +1013,71 @@ function App() {
                 <span className="invalid-count"><b>{invalidMappings.length}</b> invalid mappings</span>
               )}
             </div>
+
+            {(suggestions.length > 0 || suggestionAttempted) && (
+              <section className="suggestions-panel" aria-label="Suggested field pairs">
+                <div className="suggestions-heading">
+                  <div>
+                    <strong>Suggested pairs</strong>
+                    <span>Review each candidate before adding it to comparison.</span>
+                  </div>
+                  {suggestions.length > 0 && (
+                    <button
+                      className="icon-button"
+                      type="button"
+                      title="Dismiss all suggestions"
+                      aria-label="Dismiss all suggestions"
+                      onClick={() => {
+                        setSuggestions([])
+                        setSuggestionAttempted(false)
+                      }}
+                    >
+                      <X size={16} />
+                    </button>
+                  )}
+                </div>
+                {suggestions.length > 0 ? (
+                  <div className="suggestions-list">
+                    {suggestions.map((suggestion) => (
+                      <div
+                        className="suggestion-row"
+                        key={suggestion.soapPath + '::' + suggestion.restPath}
+                      >
+                        <span className="suggestion-confidence">
+                          Suggested {suggestion.confidence}%
+                        </span>
+                        <code title={suggestion.soapPath}>{suggestion.soapPath}</code>
+                        <ArrowLeftRight size={15} aria-hidden="true" />
+                        <code title={suggestion.restPath}>{suggestion.restPath}</code>
+                        <span className="suggestion-reasons" title={suggestion.reasons.join(' · ')}>
+                          {suggestion.reasons.join(' · ')}
+                        </span>
+                        <div className="suggestion-actions">
+                          <button
+                            className="secondary-button suggestion-accept"
+                            type="button"
+                            onClick={() => acceptSuggestion(suggestion)}
+                          >
+                            <Check size={14} /> Accept
+                          </button>
+                          <button
+                            className="icon-button"
+                            type="button"
+                            title="Dismiss suggestion"
+                            aria-label={'Dismiss suggestion for ' + suggestion.soapPath}
+                            onClick={() => dismissSuggestion(suggestion)}
+                          >
+                            <X size={15} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="suggestions-empty">No reliable unpaired field pairs found.</div>
+                )}
+              </section>
+            )}
 
             <div className="mapping-table-wrap">
               <table

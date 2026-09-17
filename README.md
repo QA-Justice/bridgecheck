@@ -2,7 +2,7 @@
 
 Bridgecheck validates data parity while an API is migrated from SOAP/XML to REST/JSON. Everything runs locally in the browser.
 
-Current MVP version: `0.4.1`.
+Current MVP version: `0.5.0`.
 
 ## Features
 
@@ -14,6 +14,7 @@ Current MVP version: `0.4.1`.
 - Resize SOAP and REST mapping columns by dragging their header boundaries
 - Search SOAP and REST field paths by case-insensitive partial text
 - Pair SOAP and REST fields directly from searchable Pivot Previews
+- Generate reviewable one-to-one pair suggestions from field names, paths, sample values, and types
 - Map fields and choose explicit comparison modes
 - Keep manual and imported mappings across response edits while sample mappings stay sample-only
 - Flag mapped fields that do not exist in the parsed responses

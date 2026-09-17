@@ -1,5 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
+import packageJson from '../package.json'
 import App from './App'
 
 describe('App parsing workflow', () => {
@@ -13,6 +14,6 @@ describe('App parsing workflow', () => {
     expect(markup).toContain('Parse JSON')
     expect(markup).toContain('Review mappings')
     expect(markup).toContain('Parse both responses to pair fields in the Pivot Previews.')
-    expect(markup).toContain('v0.4.1')
+    expect(markup).toContain('v' + packageJson.version)
   })
 })

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { compareRows } from './compare'
 import { clampMappingFieldWidth } from './layout'
-import { applyFieldSelection } from './pairing'
+import { applyFieldSelection, suggestFieldPairs } from './pairing'
 import { parseJson, parseXml } from './parse'
 import { collectFields, filterFieldPaths, pivotRows, rowsFromDocument } from './rows'
 import type { FieldMapping } from './types'
@@ -127,6 +127,44 @@ describe('preview field pairing', () => {
     expect(replaced.pending).toEqual({ side: 'soap', path: 'new.path' })
     expect(existing.activePairId).toBe('pair-1')
     expect(existing.created).toBe(false)
+  })
+
+  it('suggests unique unpaired fields from names, values, types, and array positions', () => {
+    const soapRows = rowsFromDocument(parseXml(sampleSoap))
+    const restRows = rowsFromDocument(parseJson(sampleRest))
+    const suggestions = suggestFieldPairs(soapRows, restRows, sampleMappings)
+
+    expect(suggestions).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        soapPath: 'Envelope.Body.GetCustomersResponse.Customers.Customer[1].CustomerNo',
+        restPath: 'data.customers[1].id',
+      }),
+      expect.objectContaining({
+        soapPath: 'Envelope.Body.GetCustomersResponse.Customers.Customer[1].Balance',
+        restPath: 'data.customers[1].account.balance',
+      }),
+    ]))
+    expect(suggestions.every((suggestion) => suggestion.confidence >= 68)).toBe(true)
+    expect(new Set(suggestions.map((suggestion) => suggestion.soapPath)).size).toBe(suggestions.length)
+    expect(new Set(suggestions.map((suggestion) => suggestion.restPath)).size).toBe(suggestions.length)
+  })
+
+  it('does not suggest unrelated fields or reuse existing mapping paths', () => {
+    const suggestions = suggestFieldPairs(
+      [{ legacyCustomerNo: '1001', unrelatedFlag: true }],
+      [{ customerId: 1001, description: 'ready' }],
+      [{
+        id: 'existing',
+        soapPath: 'legacyCustomerNo',
+        restPath: 'customerId',
+        displayName: '',
+        comparison: 'text',
+        include: true,
+        joinKey: false,
+      }],
+    )
+
+    expect(suggestions).toEqual([])
   })
 })
 

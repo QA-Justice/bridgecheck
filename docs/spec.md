@@ -57,7 +57,10 @@ Bridgecheck validates data parity while an API is migrated from SOAP/XML to REST
 - Manual and imported mappings remain unchanged when response text is edited or parsed again.
 - SOAP and REST field selectors list only fields found in the currently parsed responses.
 - A preserved manual or imported path that is absent from the current response is marked as not found; included mappings must be resolved before comparison.
-- Bridgecheck does not automatically suggest or replace mappings.
+- `Suggest pairs` considers only currently unpaired parsed fields and returns one-to-one candidates above a conservative confidence threshold.
+- Suggestions show their confidence and scoring reasons but do not affect comparison or exported config until individually accepted.
+- Accepted suggestions become ordinary mappings with `Exact` comparison and never select a Join Key automatically.
+- Manual and imported mappings are never replaced by suggestions.
 
 ## Result details
 
@@ -80,7 +83,7 @@ Bridgecheck validates data parity while an API is migrated from SOAP/XML to REST
 
 - Calling live APIs, handling authentication, or bypassing CORS
 - Parsing WSDL or OpenAPI documents
-- Automatic semantic field mapping
+- AI/LLM-based mapping or automatically accepting suggested pairs
 - Streaming multi-gigabyte files
 - Server-side storage, accounts, or collaboration
 
@@ -88,5 +91,6 @@ Bridgecheck validates data parity while an API is migrated from SOAP/XML to REST
 
 - `parse.ts`: format parsing and XML-specific value cleanup
 - `rows.ts`: deterministic full-response flattening
+- `pairing.ts`: manual preview pairing and deterministic pair suggestions
 - `compare.ts`: field mapping, comparison modes, joining, and reporting
 - `App.tsx`: workflow state and presentation only

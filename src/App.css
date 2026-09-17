@@ -836,6 +836,135 @@ tbody tr:last-child td {
   margin-left: auto;
 }
 
+.mapping-actions,
+.suggestion-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.suggestions-panel {
+  margin-bottom: 12px;
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid #b9cbc2;
+  border-radius: 5px;
+}
+
+.suggestions-heading {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 12px;
+  background: #f1f7f4;
+  border-bottom: 1px solid #d5e1db;
+}
+
+.suggestions-heading > div {
+  min-width: 0;
+}
+
+.suggestions-heading strong,
+.suggestions-heading span {
+  display: block;
+}
+
+.suggestions-heading strong {
+  color: #1d4f39;
+  font-size: 12px;
+}
+
+.suggestions-heading span {
+  margin-top: 2px;
+  color: #68766f;
+  font-size: 10px;
+}
+
+.suggestions-heading .icon-button {
+  flex: 0 0 auto;
+}
+
+.suggestions-list {
+  max-height: 360px;
+  overflow: auto;
+}
+
+.suggestion-row {
+  min-height: 54px;
+  display: grid;
+  grid-template-columns: 112px minmax(180px, 1fr) 22px minmax(180px, 1fr) minmax(160px, 0.7fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-bottom: 1px solid #e3e8e5;
+}
+
+.suggestion-row:last-child {
+  border-bottom: 0;
+}
+
+.suggestion-row > svg {
+  color: #728078;
+}
+
+.suggestion-row code,
+.suggestion-reasons {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.suggestion-row code {
+  color: #29362f;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 11px;
+}
+
+.suggestion-confidence {
+  justify-self: start;
+  padding: 4px 6px;
+  color: #185b40;
+  background: #dff0e7;
+  border: 1px solid #98bdaa;
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: 850;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.suggestion-reasons {
+  color: #68766f;
+  font-size: 10px;
+}
+
+.suggestion-actions {
+  justify-content: flex-end;
+}
+
+.suggestion-accept {
+  height: 30px;
+  padding: 0 9px;
+  color: #1f6548;
+  border-color: #9cbbaa;
+  font-size: 10px;
+}
+
+.suggestion-actions .icon-button {
+  width: 30px;
+  height: 30px;
+}
+
+.suggestions-empty {
+  padding: 18px 12px;
+  color: #6f7b75;
+  font-size: 11px;
+  text-align: center;
+}
+
 .mapping-table-wrap,
 .results-table-wrap {
   background: #fff;
@@ -1382,6 +1511,15 @@ input[type="checkbox"] {
 
   .mapping-meta span {
     flex: 0 0 auto;
+  }
+
+  .suggestion-row {
+    grid-template-columns: 104px minmax(200px, 1fr) 22px minmax(200px, 1fr) auto;
+    min-width: 820px;
+  }
+
+  .suggestion-reasons {
+    display: none;
   }
 
 }
