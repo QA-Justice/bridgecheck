@@ -26,7 +26,11 @@ import {
 } from 'lucide-react'
 import './App.css'
 import { compareRows } from './domain/compare'
-import { clampMappingFieldWidth, DEFAULT_MAPPING_FIELD_WIDTH } from './domain/layout'
+import {
+  clampMappingFieldWidth,
+  clampResultColumnWidth,
+  DEFAULT_MAPPING_FIELD_WIDTH,
+} from './domain/layout'
 import { applyFieldSelection, mappingForField, suggestFieldPairs } from './domain/pairing'
 import type { FieldSelection, MappingSide, PairSuggestion } from './domain/pairing'
 import { parseJson, parseXml } from './domain/parse'
@@ -52,6 +56,7 @@ type StatusFilter = 'ALL' | 'MATCH' | 'MISMATCH'
 type FieldStatusFilter = 'ALL' | 'MISMATCH'
 type MappingSource = 'sample' | 'manual' | 'imported'
 type MappingFieldColumn = 'soap' | 'rest'
+type ResultColumn = 'key' | 'field' | 'status' | 'soapValue' | 'restValue' | 'comparison'
 
 interface ResultTableRow {
   result: ComparisonResult
@@ -60,6 +65,12 @@ interface ResultTableRow {
 
 interface MappingColumnResize {
   column: MappingFieldColumn
+  startX: number
+  startWidth: number
+}
+
+interface ResultColumnResize {
+  column: ResultColumn
   startX: number
   startWidth: number
 }
@@ -78,6 +89,22 @@ const comparisonOptions: { value: ComparisonMode; label: string }[] = [
 ]
 
 const visibleStatuses = ['MATCH', 'MISMATCH'] as const satisfies readonly ComparisonStatus[]
+const defaultResultColumnWidths: Record<ResultColumn, number> = {
+  key: 150,
+  field: 240,
+  status: 140,
+  soapValue: 220,
+  restValue: 220,
+  comparison: 150,
+}
+const resultColumnHeaders = [
+  ['key', 'Key'],
+  ['field', 'Field'],
+  ['status', 'Field Status'],
+  ['soapValue', 'SOAP Value'],
+  ['restValue', 'REST Value'],
+  ['comparison', 'Comparison'],
+] as const satisfies readonly (readonly [ResultColumn, string])[]
 
 function comparisonLabel(mode: ComparisonMode): string {
   return comparisonOptions.find((option) => option.value === mode)?.label ?? mode
@@ -480,6 +507,10 @@ function App() {
   const [soapFieldColumnWidth, setSoapFieldColumnWidth] = useState(DEFAULT_MAPPING_FIELD_WIDTH)
   const [restFieldColumnWidth, setRestFieldColumnWidth] = useState(DEFAULT_MAPPING_FIELD_WIDTH)
   const mappingColumnResize = useRef<MappingColumnResize | null>(null)
+  const [resultColumnWidths, setResultColumnWidths] = useState<Record<ResultColumn, number>>(
+    { ...defaultResultColumnWidths },
+  )
+  const resultColumnResize = useRef<ResultColumnResize | null>(null)
   const bothResponsesParsed = soapParsed && restParsed
 
   const soapFields = useMemo(() => collectFields(soapRows), [soapRows])
@@ -559,6 +590,51 @@ function App() {
     event.preventDefault()
     const currentWidth = column === 'soap' ? soapFieldColumnWidth : restFieldColumnWidth
     setMappingFieldColumnWidth(column, currentWidth + (event.key === 'ArrowRight' ? 24 : -24))
+  }
+
+  function setResultColumnWidth(column: ResultColumn, width: number): void {
+    setResultColumnWidths((current) => ({
+      ...current,
+      [column]: clampResultColumnWidth(width),
+    }))
+  }
+
+  function startResultColumnResize(
+    column: ResultColumn,
+    event: ReactPointerEvent<HTMLButtonElement>,
+  ): void {
+    event.preventDefault()
+    resultColumnResize.current = {
+      column,
+      startX: event.clientX,
+      startWidth: resultColumnWidths[column],
+    }
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
+
+  function resizeResultColumn(event: ReactPointerEvent<HTMLButtonElement>): void {
+    const resize = resultColumnResize.current
+    if (!resize) return
+    setResultColumnWidth(resize.column, resize.startWidth + event.clientX - resize.startX)
+  }
+
+  function stopResultColumnResize(event: ReactPointerEvent<HTMLButtonElement>): void {
+    resultColumnResize.current = null
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    }
+  }
+
+  function resizeResultColumnWithKeyboard(
+    column: ResultColumn,
+    event: ReactKeyboardEvent<HTMLButtonElement>,
+  ): void {
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+    event.preventDefault()
+    setResultColumnWidth(
+      column,
+      resultColumnWidths[column] + (event.key === 'ArrowRight' ? 24 : -24),
+    )
   }
 
   function markImportedConfigModified(): void {
@@ -1312,40 +1388,79 @@ function App() {
                 </div>
 
                 <div className="results-table-wrap">
-                  <table className="results-table">
+                  <table
+                    className="results-table"
+                    style={{
+                      '--result-key-width': resultColumnWidths.key + 'px',
+                      '--result-field-width': resultColumnWidths.field + 'px',
+                      '--result-status-width': resultColumnWidths.status + 'px',
+                      '--result-soap-value-width': resultColumnWidths.soapValue + 'px',
+                      '--result-rest-value-width': resultColumnWidths.restValue + 'px',
+                      '--result-comparison-width': resultColumnWidths.comparison + 'px',
+                    } as CSSProperties}
+                  >
                     <thead>
                       <tr>
-                        <th>Key</th>
-                        <th>Field</th>
-                        <th>Field Status</th>
-                        <th>SOAP Value</th>
-                        <th>REST Value</th>
-                        <th>Comparison</th>
+                        {resultColumnHeaders.map(([column, label]) => (
+                          <th className="resizable-field-column" key={column}>
+                            <span>{label}</span>
+                            <button
+                              className="column-resize-handle"
+                              type="button"
+                              aria-label={'Resize ' + label + ' column'}
+                              title="Drag to resize; double-click to reset"
+                              onPointerDown={(event) => startResultColumnResize(column, event)}
+                              onPointerMove={resizeResultColumn}
+                              onPointerUp={stopResultColumnResize}
+                              onPointerCancel={stopResultColumnResize}
+                              onLostPointerCapture={stopResultColumnResize}
+                              onKeyDown={(event) => resizeResultColumnWithKeyboard(column, event)}
+                              onDoubleClick={() => setResultColumnWidth(column, defaultResultColumnWidths[column])}
+                            />
+                          </th>
+                        ))}
                       </tr>
                     </thead>
                     <tbody>
-                      {visibleResultRows.map(({ result, field }, index) => (
-                        <tr
-                          className={field?.status === 'MISMATCH' ? 'is-field-mismatch' : ''}
-                          key={result.key + '-' + (field?.field ?? 'summary') + '-' + index}
-                        >
-                          <td className="key-value">{formatKey(result.key)}</td>
-                          <td>
-                            <span>{field?.field ?? '--'}</span>
-                            {field?.isMatchKey && <span className="key-badge">Key</span>}
-                          </td>
-                          <td>
-                            {field ? (
-                              <span className={'field-status-pill status-' + field.status.toLowerCase()}>
-                                {field.status.replaceAll('_', ' ')}
+                      {visibleResultRows.map(({ result, field }, index) => {
+                        const keyValue = formatKey(result.key)
+                        const fieldValue = field?.field ?? '--'
+                        const soapValue = field ? formatValue(field.soapValue) : '--'
+                        const restValue = field ? formatValue(field.restValue) : '--'
+                        const comparison = field ? comparisonLabel(field.comparison) : '--'
+                        return (
+                          <tr
+                            className={field?.status === 'MISMATCH' ? 'is-field-mismatch' : ''}
+                            key={result.key + '-' + (field?.field ?? 'summary') + '-' + index}
+                          >
+                            <td className="key-value">
+                              <span className="result-cell-text" title={keyValue}>{keyValue}</span>
+                            </td>
+                            <td>
+                              <span className="result-field-content">
+                                <span className="result-cell-text" title={fieldValue}>{fieldValue}</span>
+                                {field?.isMatchKey && <span className="key-badge">Key</span>}
                               </span>
-                            ) : '--'}
-                          </td>
-                          <td className="raw-value">{field ? formatValue(field.soapValue) : '--'}</td>
-                          <td className="raw-value">{field ? formatValue(field.restValue) : '--'}</td>
-                          <td>{field ? comparisonLabel(field.comparison) : '--'}</td>
-                        </tr>
-                      ))}
+                            </td>
+                            <td>
+                              {field ? (
+                                <span className={'field-status-pill status-' + field.status.toLowerCase()}>
+                                  {field.status.replaceAll('_', ' ')}
+                                </span>
+                              ) : '--'}
+                            </td>
+                            <td className="raw-value">
+                              <span className="result-cell-text" title={soapValue}>{soapValue}</span>
+                            </td>
+                            <td className="raw-value">
+                              <span className="result-cell-text" title={restValue}>{restValue}</span>
+                            </td>
+                            <td>
+                              <span className="result-cell-text" title={comparison}>{comparison}</span>
+                            </td>
+                          </tr>
+                        )
+                      })}
                     </tbody>
                   </table>
                   {visibleResultRows.length === 0 && (

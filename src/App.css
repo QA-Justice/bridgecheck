@@ -1352,32 +1352,44 @@ input[type="checkbox"] {
 }
 
 .results-table {
-  min-width: 1040px;
+  width: max(100%, calc(var(--result-key-width) + var(--result-field-width) + var(--result-status-width) + var(--result-soap-value-width) + var(--result-rest-value-width) + var(--result-comparison-width)));
+  min-width: calc(var(--result-key-width) + var(--result-field-width) + var(--result-status-width) + var(--result-soap-value-width) + var(--result-rest-value-width) + var(--result-comparison-width));
+  table-layout: fixed;
 }
 
-.results-table th:nth-child(1) {
-  width: 140px;
+.results-table th:nth-child(1),
+.results-table td:nth-child(1) {
+  width: var(--result-key-width);
 }
 
-.results-table th:nth-child(2) {
-  width: 240px;
+.results-table th:nth-child(2),
+.results-table td:nth-child(2) {
+  width: var(--result-field-width);
 }
 
-.results-table th:nth-child(3) {
-  width: 135px;
+.results-table th:nth-child(3),
+.results-table td:nth-child(3) {
+  width: var(--result-status-width);
 }
 
 .results-table th:nth-child(4),
-.results-table th:nth-child(5) {
-  width: 190px;
+.results-table td:nth-child(4) {
+  width: var(--result-soap-value-width);
 }
 
-.results-table th:nth-child(6) {
-  width: 140px;
+.results-table th:nth-child(5),
+.results-table td:nth-child(5) {
+  width: var(--result-rest-value-width);
+}
+
+.results-table th:nth-child(6),
+.results-table td:nth-child(6) {
+  width: var(--result-comparison-width);
 }
 
 .results-table td {
   height: 48px;
+  overflow: hidden;
 }
 
 .results-table tr.is-field-mismatch td {
@@ -1429,6 +1441,28 @@ input[type="checkbox"] {
 .raw-value {
   font-family: "SFMono-Regular", Consolas, monospace;
   font-size: 11px;
+}
+
+.result-cell-text {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.result-field-content {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+}
+
+.result-field-content .result-cell-text {
+  flex: 1 1 auto;
+}
+
+.result-field-content .key-badge {
+  flex: 0 0 auto;
 }
 
 .results-empty,

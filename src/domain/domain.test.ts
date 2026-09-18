@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { compareRows } from './compare'
-import { clampMappingFieldWidth } from './layout'
+import { clampMappingFieldWidth, clampResultColumnWidth } from './layout'
 import { applyFieldSelection, suggestFieldPairs } from './pairing'
 import { parseJson, parseXml } from './parse'
 import { collectFields, filterFieldPaths, pivotRows, rowsFromDocument } from './rows'
@@ -76,6 +76,12 @@ describe('layout helpers', () => {
     expect(clampMappingFieldWidth(100)).toBe(220)
     expect(clampMappingFieldWidth(480)).toBe(480)
     expect(clampMappingFieldWidth(1200)).toBe(900)
+  })
+
+  it('keeps result columns within usable resize limits', () => {
+    expect(clampResultColumnWidth(40)).toBe(96)
+    expect(clampResultColumnWidth(320)).toBe(320)
+    expect(clampResultColumnWidth(1200)).toBe(900)
   })
 })
 

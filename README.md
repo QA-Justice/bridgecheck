@@ -20,6 +20,7 @@ Current MVP version: `0.5.1`.
 - Flag mapped fields that do not exist in the parsed responses
 - Match records with single or composite join keys
 - Show every enabled field with field-level status and record summaries
+- Truncate long result values with hover details and resizable result columns
 - Show match and mismatch records in the Results screen
 - Filter result details to mismatches without hiding matches from CSV exports
 - Export every field result and record-status diagnostic as CSV
@@ -32,6 +33,16 @@ Current MVP version: `0.5.1`.
 npm install
 npm run dev
 ~~~
+
+## Standalone HTML
+
+Build a single offline file containing the application, JavaScript, and CSS:
+
+~~~bash
+npm run build:standalone
+~~~
+
+Open `bridgecheck.html` directly in a modern browser. No server or internet connection is required.
 
 ## Verification
 
