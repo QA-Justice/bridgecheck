@@ -742,9 +742,9 @@ tbody tr:last-child td {
 
 .pivot-table th:nth-child(2),
 .pivot-table td:nth-child(2) {
-  width: 280px;
-  min-width: 280px;
-  max-width: 280px;
+  width: var(--pivot-field-width);
+  min-width: var(--pivot-field-width);
+  max-width: var(--pivot-field-width);
 }
 
 .pivot-table .preview-value-column,
@@ -764,16 +764,53 @@ tbody tr:last-child td {
   color: #26342d;
   background: #fff;
   font-weight: 650;
-  overflow: visible;
-  text-overflow: clip;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.preview-value-content {
+  display: flex;
+  min-width: 0;
+  align-items: center;
 }
 
 .preview-value-text {
   display: block;
+  flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.copy-value-button {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  display: grid;
+  place-items: center;
+  margin-left: 5px;
+  padding: 0;
+  color: #617069;
+  background: #f5f8f6;
+  border: 1px solid #cdd7d2;
+  border-radius: 3px;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.preview-value-cell:hover .copy-value-button,
+.preview-value-cell:focus-within .copy-value-button {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.copy-value-button:hover,
+.copy-value-button:focus-visible {
+  color: #155c3e;
+  background: #e8f3ed;
+  border-color: #8fb09f;
 }
 
 .preview-field-path {
@@ -787,8 +824,17 @@ tbody tr:last-child td {
   font-family: inherit;
   font-size: inherit;
   font-weight: inherit;
+  overflow: hidden;
   text-align: left;
+  text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+@media (hover: none) {
+  .copy-value-button {
+    opacity: 1;
+    pointer-events: auto;
+  }
 }
 
 .preview-field-path:hover {

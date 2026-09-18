@@ -12,6 +12,7 @@ Current MVP version: `0.5.1`.
 - Use dot notation for objects and index notation for arrays
 - Pivot wide previews so fields become rows, with horizontal scrolling for long paths
 - Truncate long pivot values with hover details and independently resizable value columns
+- Resize pivot field columns and copy complete raw values from preview cells
 - Resize SOAP and REST mapping columns by dragging their header boundaries
 - Search SOAP and REST field paths by case-insensitive partial text
 - Pair SOAP and REST fields directly from searchable Pivot Previews

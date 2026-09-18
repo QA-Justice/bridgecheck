@@ -11,6 +11,7 @@ import {
   FileQuestion,
   FileUp,
   Link2,
+  Copy,
   Play,
   Plus,
   RotateCcw,
@@ -28,9 +29,11 @@ import './App.css'
 import { compareRows } from './domain/compare'
 import {
   clampMappingFieldWidth,
+  clampPreviewFieldWidth,
   clampPreviewValueWidth,
   clampResultColumnWidth,
   DEFAULT_MAPPING_FIELD_WIDTH,
+  DEFAULT_PREVIEW_FIELD_WIDTH,
   DEFAULT_PREVIEW_VALUE_WIDTH,
 } from './domain/layout'
 import { applyFieldSelection, mappingForField, suggestFieldPairs } from './domain/pairing'
@@ -136,6 +139,39 @@ function formatKey(key: string): string {
       }
     })
     .join(' / ')
+}
+
+function valueForClipboard(value: Scalar | undefined): string {
+  if (value === undefined) return ''
+  if (value === null) return 'null'
+  return String(value)
+}
+
+async function copyToClipboard(value: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(value)
+      return true
+    }
+  } catch {
+    // Local file pages may not receive Clipboard API permission.
+  }
+
+  const textarea = document.createElement('textarea')
+  textarea.value = value
+  textarea.style.position = 'fixed'
+  textarea.style.opacity = '0'
+  textarea.style.pointerEvents = 'none'
+  document.body.appendChild(textarea)
+  textarea.focus()
+  textarea.select()
+  try {
+    return document.execCommand('copy')
+  } catch {
+    return false
+  } finally {
+    textarea.remove()
+  }
 }
 
 function downloadFile(name: string, content: string, type: string): void {
@@ -291,8 +327,11 @@ function DataPanel({
   const [isPivoted, setIsPivoted] = useState(true)
   const [fieldQuery, setFieldQuery] = useState('')
   const [showUnpairedOnly, setShowUnpairedOnly] = useState(false)
+  const [pivotFieldColumnWidth, setPivotFieldColumnWidth] = useState(DEFAULT_PREVIEW_FIELD_WIDTH)
   const [pivotValueColumnWidths, setPivotValueColumnWidths] = useState<Record<string, number>>({})
+  const [copiedValueCell, setCopiedValueCell] = useState<string | null>(null)
   const previewColumnResize = useRef<PreviewColumnResize | null>(null)
+  const copyResetTimeout = useRef<number | null>(null)
   const side: MappingSide = kind === 'SOAP' ? 'soap' : 'rest'
   const pivotedRows = pivotRows(rows)
   const filteredPivotRows = pivotedRows.filter((row) => {
@@ -305,12 +344,20 @@ function DataPanel({
   const fields = collectFields(rows)
   const pairedFieldCount = fields.filter((field) => mappingForField(mappings, side, field)).length
   const pivotValueFields = isPivoted ? displayFields.filter((field) => field !== 'Field') : []
-  const pivotTableWidth = 82 + 280 + pivotValueFields.reduce(
+  const pivotTableWidth = 82 + pivotFieldColumnWidth + pivotValueFields.reduce(
     (total, field) => total + (pivotValueColumnWidths[field] ?? DEFAULT_PREVIEW_VALUE_WIDTH),
     0,
   )
 
-  function setPivotValueColumnWidth(field: string, width: number): void {
+  useEffect(() => () => {
+    if (copyResetTimeout.current !== null) window.clearTimeout(copyResetTimeout.current)
+  }, [])
+
+  function setPreviewColumnWidth(field: string, width: number): void {
+    if (field === 'Field') {
+      setPivotFieldColumnWidth(clampPreviewFieldWidth(width))
+      return
+    }
     setPivotValueColumnWidths((current) => ({
       ...current,
       [field]: clampPreviewValueWidth(width),
@@ -325,7 +372,9 @@ function DataPanel({
     previewColumnResize.current = {
       field,
       startX: event.clientX,
-      startWidth: pivotValueColumnWidths[field] ?? DEFAULT_PREVIEW_VALUE_WIDTH,
+      startWidth: field === 'Field'
+        ? pivotFieldColumnWidth
+        : pivotValueColumnWidths[field] ?? DEFAULT_PREVIEW_VALUE_WIDTH,
     }
     event.currentTarget.setPointerCapture(event.pointerId)
   }
@@ -333,7 +382,7 @@ function DataPanel({
   function resizePreviewColumn(event: ReactPointerEvent<HTMLButtonElement>): void {
     const resize = previewColumnResize.current
     if (!resize) return
-    setPivotValueColumnWidth(resize.field, resize.startWidth + event.clientX - resize.startX)
+    setPreviewColumnWidth(resize.field, resize.startWidth + event.clientX - resize.startX)
   }
 
   function stopPreviewColumnResize(event: ReactPointerEvent<HTMLButtonElement>): void {
@@ -349,8 +398,17 @@ function DataPanel({
   ): void {
     if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
     event.preventDefault()
-    const currentWidth = pivotValueColumnWidths[field] ?? DEFAULT_PREVIEW_VALUE_WIDTH
-    setPivotValueColumnWidth(field, currentWidth + (event.key === 'ArrowRight' ? 24 : -24))
+    const currentWidth = field === 'Field'
+      ? pivotFieldColumnWidth
+      : pivotValueColumnWidths[field] ?? DEFAULT_PREVIEW_VALUE_WIDTH
+    setPreviewColumnWidth(field, currentWidth + (event.key === 'ArrowRight' ? 24 : -24))
+  }
+
+  async function copyPreviewValue(value: Scalar | undefined, cellId: string): Promise<void> {
+    if (!await copyToClipboard(valueForClipboard(value))) return
+    setCopiedValueCell(cellId)
+    if (copyResetTimeout.current !== null) window.clearTimeout(copyResetTimeout.current)
+    copyResetTimeout.current = window.setTimeout(() => setCopiedValueCell(null), 1400)
   }
 
   return (
@@ -457,22 +515,27 @@ function DataPanel({
           <div className="table-scroll">
             <table
               className={isPivoted ? 'pivot-table' : ''}
-              style={isPivoted ? { width: `max(100%, ${pivotTableWidth}px)` } : undefined}
+              style={isPivoted ? {
+                width: `max(100%, ${pivotTableWidth}px)`,
+                '--pivot-field-width': pivotFieldColumnWidth + 'px',
+              } as CSSProperties : undefined}
             >
               <thead>
                 <tr>
                   {isPivoted && <th className="pair-column">Pair</th>}
                   {displayFields.map((field) => {
+                    const isPivotField = isPivoted && field === 'Field'
                     const isPivotValue = isPivoted && field !== 'Field'
+                    const isResizable = isPivotField || isPivotValue
                     const width = pivotValueColumnWidths[field] ?? DEFAULT_PREVIEW_VALUE_WIDTH
                     return (
                       <th
-                        className={isPivotValue ? 'preview-value-column resizable-field-column' : ''}
+                        className={isResizable ? 'preview-value-column resizable-field-column' : ''}
                         key={field}
                         style={isPivotValue ? { width } : undefined}
                       >
                         <span>{field}</span>
-                        {isPivotValue && (
+                        {isResizable && (
                           <button
                             className="column-resize-handle"
                             type="button"
@@ -484,7 +547,10 @@ function DataPanel({
                             onPointerCancel={stopPreviewColumnResize}
                             onLostPointerCapture={stopPreviewColumnResize}
                             onKeyDown={(event) => resizePreviewColumnWithKeyboard(field, event)}
-                            onDoubleClick={() => setPivotValueColumnWidth(field, DEFAULT_PREVIEW_VALUE_WIDTH)}
+                            onDoubleClick={() => setPreviewColumnWidth(
+                              field,
+                              isPivotField ? DEFAULT_PREVIEW_FIELD_WIDTH : DEFAULT_PREVIEW_VALUE_WIDTH,
+                            )}
                           />
                         )}
                       </th>
@@ -542,6 +608,7 @@ function DataPanel({
                       {displayFields.map((field) => {
                         const isPivotValue = isPivoted && field !== 'Field'
                         const displayValue = formatValue(row[field])
+                        const copyCellId = path + '\u0000' + field
                         return (
                           <td
                             className={isPivotValue ? 'preview-value-cell' : ''}
@@ -562,7 +629,23 @@ function DataPanel({
                               </button>
                               )
                               : isPivotValue
-                                ? <span className="preview-value-text" title={displayValue}>{displayValue}</span>
+                                ? (
+                                  <span className="preview-value-content">
+                                    <span className="preview-value-text" title={displayValue}>{displayValue}</span>
+                                    <button
+                                      className="copy-value-button"
+                                      type="button"
+                                      aria-label={(copiedValueCell === copyCellId ? 'Copied ' : 'Copy ')
+                                        + kind + ' value for ' + path}
+                                      title={copiedValueCell === copyCellId ? 'Copied' : 'Copy raw value'}
+                                      onClick={() => void copyPreviewValue(row[field], copyCellId)}
+                                    >
+                                      {copiedValueCell === copyCellId
+                                        ? <Check size={13} aria-hidden="true" />
+                                        : <Copy size={13} aria-hidden="true" />}
+                                    </button>
+                                  </span>
+                                )
                                 : displayValue}
                           </td>
                         )

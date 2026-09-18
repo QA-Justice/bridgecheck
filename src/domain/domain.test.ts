@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { compareRows } from './compare'
-import { clampMappingFieldWidth, clampPreviewValueWidth, clampResultColumnWidth } from './layout'
+import {
+  clampMappingFieldWidth,
+  clampPreviewFieldWidth,
+  clampPreviewValueWidth,
+  clampResultColumnWidth,
+} from './layout'
 import { applyFieldSelection, suggestFieldPairs } from './pairing'
 import { parseJson, parseXml } from './parse'
 import { collectFields, filterFieldPaths, pivotRows, rowsFromDocument } from './rows'
@@ -88,6 +93,12 @@ describe('layout helpers', () => {
     expect(clampPreviewValueWidth(40)).toBe(120)
     expect(clampPreviewValueWidth(360)).toBe(360)
     expect(clampPreviewValueWidth(1200)).toBe(900)
+  })
+
+  it('keeps the pivot field column within usable resize limits', () => {
+    expect(clampPreviewFieldWidth(100)).toBe(220)
+    expect(clampPreviewFieldWidth(420)).toBe(420)
+    expect(clampPreviewFieldWidth(1200)).toBe(900)
   })
 })
 
