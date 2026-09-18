@@ -736,19 +736,21 @@ tbody tr:last-child td {
 }
 
 .pivot-table {
-  width: max-content;
   min-width: 100%;
+  table-layout: fixed;
 }
 
 .pivot-table th:nth-child(2),
 .pivot-table td:nth-child(2) {
+  width: 280px;
   min-width: 280px;
-  max-width: none;
+  max-width: 280px;
 }
 
-.pivot-table th:not(:first-child):not(:nth-child(2)),
-.pivot-table td:not(:first-child):not(:nth-child(2)) {
-  min-width: 160px;
+.pivot-table .preview-value-column,
+.pivot-table .preview-value-cell {
+  min-width: 0;
+  max-width: none;
 }
 
 .pivot-table .pair-column {
@@ -764,6 +766,14 @@ tbody tr:last-child td {
   font-weight: 650;
   overflow: visible;
   text-overflow: clip;
+}
+
+.preview-value-text {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .preview-field-path {

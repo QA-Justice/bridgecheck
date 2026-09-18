@@ -11,6 +11,7 @@ Current MVP version: `0.5.1`.
 - Fully flatten nested objects and arrays without manual path selection
 - Use dot notation for objects and index notation for arrays
 - Pivot wide previews so fields become rows, with horizontal scrolling for long paths
+- Truncate long pivot values with hover details and independently resizable value columns
 - Resize SOAP and REST mapping columns by dragging their header boundaries
 - Search SOAP and REST field paths by case-insensitive partial text
 - Pair SOAP and REST fields directly from searchable Pivot Previews

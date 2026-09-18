@@ -28,8 +28,10 @@ import './App.css'
 import { compareRows } from './domain/compare'
 import {
   clampMappingFieldWidth,
+  clampPreviewValueWidth,
   clampResultColumnWidth,
   DEFAULT_MAPPING_FIELD_WIDTH,
+  DEFAULT_PREVIEW_VALUE_WIDTH,
 } from './domain/layout'
 import { applyFieldSelection, mappingForField, suggestFieldPairs } from './domain/pairing'
 import type { FieldSelection, MappingSide, PairSuggestion } from './domain/pairing'
@@ -71,6 +73,12 @@ interface MappingColumnResize {
 
 interface ResultColumnResize {
   column: ResultColumn
+  startX: number
+  startWidth: number
+}
+
+interface PreviewColumnResize {
+  field: string
   startX: number
   startWidth: number
 }
@@ -283,6 +291,8 @@ function DataPanel({
   const [isPivoted, setIsPivoted] = useState(true)
   const [fieldQuery, setFieldQuery] = useState('')
   const [showUnpairedOnly, setShowUnpairedOnly] = useState(false)
+  const [pivotValueColumnWidths, setPivotValueColumnWidths] = useState<Record<string, number>>({})
+  const previewColumnResize = useRef<PreviewColumnResize | null>(null)
   const side: MappingSide = kind === 'SOAP' ? 'soap' : 'rest'
   const pivotedRows = pivotRows(rows)
   const filteredPivotRows = pivotedRows.filter((row) => {
@@ -294,6 +304,54 @@ function DataPanel({
   const displayFields = collectFields(displayRows)
   const fields = collectFields(rows)
   const pairedFieldCount = fields.filter((field) => mappingForField(mappings, side, field)).length
+  const pivotValueFields = isPivoted ? displayFields.filter((field) => field !== 'Field') : []
+  const pivotTableWidth = 82 + 280 + pivotValueFields.reduce(
+    (total, field) => total + (pivotValueColumnWidths[field] ?? DEFAULT_PREVIEW_VALUE_WIDTH),
+    0,
+  )
+
+  function setPivotValueColumnWidth(field: string, width: number): void {
+    setPivotValueColumnWidths((current) => ({
+      ...current,
+      [field]: clampPreviewValueWidth(width),
+    }))
+  }
+
+  function startPreviewColumnResize(
+    field: string,
+    event: ReactPointerEvent<HTMLButtonElement>,
+  ): void {
+    event.preventDefault()
+    previewColumnResize.current = {
+      field,
+      startX: event.clientX,
+      startWidth: pivotValueColumnWidths[field] ?? DEFAULT_PREVIEW_VALUE_WIDTH,
+    }
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
+
+  function resizePreviewColumn(event: ReactPointerEvent<HTMLButtonElement>): void {
+    const resize = previewColumnResize.current
+    if (!resize) return
+    setPivotValueColumnWidth(resize.field, resize.startWidth + event.clientX - resize.startX)
+  }
+
+  function stopPreviewColumnResize(event: ReactPointerEvent<HTMLButtonElement>): void {
+    previewColumnResize.current = null
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    }
+  }
+
+  function resizePreviewColumnWithKeyboard(
+    field: string,
+    event: ReactKeyboardEvent<HTMLButtonElement>,
+  ): void {
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+    event.preventDefault()
+    const currentWidth = pivotValueColumnWidths[field] ?? DEFAULT_PREVIEW_VALUE_WIDTH
+    setPivotValueColumnWidth(field, currentWidth + (event.key === 'ArrowRight' ? 24 : -24))
+  }
 
   return (
     <section className={'data-panel data-panel--' + kind.toLowerCase()}>
@@ -397,11 +455,41 @@ function DataPanel({
         )}
         {isParsed ? (
           <div className="table-scroll">
-            <table className={isPivoted ? 'pivot-table' : ''}>
+            <table
+              className={isPivoted ? 'pivot-table' : ''}
+              style={isPivoted ? { width: `max(100%, ${pivotTableWidth}px)` } : undefined}
+            >
               <thead>
                 <tr>
                   {isPivoted && <th className="pair-column">Pair</th>}
-                  {displayFields.map((field) => <th key={field}>{field}</th>)}
+                  {displayFields.map((field) => {
+                    const isPivotValue = isPivoted && field !== 'Field'
+                    const width = pivotValueColumnWidths[field] ?? DEFAULT_PREVIEW_VALUE_WIDTH
+                    return (
+                      <th
+                        className={isPivotValue ? 'preview-value-column resizable-field-column' : ''}
+                        key={field}
+                        style={isPivotValue ? { width } : undefined}
+                      >
+                        <span>{field}</span>
+                        {isPivotValue && (
+                          <button
+                            className="column-resize-handle"
+                            type="button"
+                            aria-label={'Resize ' + field + ' column'}
+                            title="Drag to resize; double-click to reset"
+                            onPointerDown={(event) => startPreviewColumnResize(field, event)}
+                            onPointerMove={resizePreviewColumn}
+                            onPointerUp={stopPreviewColumnResize}
+                            onPointerCancel={stopPreviewColumnResize}
+                            onLostPointerCapture={stopPreviewColumnResize}
+                            onKeyDown={(event) => resizePreviewColumnWithKeyboard(field, event)}
+                            onDoubleClick={() => setPivotValueColumnWidth(field, DEFAULT_PREVIEW_VALUE_WIDTH)}
+                          />
+                        )}
+                      </th>
+                    )
+                  })}
                 </tr>
               </thead>
               <tbody>
@@ -451,10 +539,19 @@ function DataPanel({
                           )}
                         </td>
                       )}
-                      {displayFields.map((field) => (
-                        <td key={field}>
-                          {isPivoted && field === 'Field'
-                            ? (
+                      {displayFields.map((field) => {
+                        const isPivotValue = isPivoted && field !== 'Field'
+                        const displayValue = formatValue(row[field])
+                        return (
+                          <td
+                            className={isPivotValue ? 'preview-value-cell' : ''}
+                            key={field}
+                            style={isPivotValue
+                              ? { width: pivotValueColumnWidths[field] ?? DEFAULT_PREVIEW_VALUE_WIDTH }
+                              : undefined}
+                          >
+                            {isPivoted && field === 'Field'
+                              ? (
                               <button
                                 className="preview-field-path"
                                 type="button"
@@ -463,10 +560,13 @@ function DataPanel({
                               >
                                 {path}
                               </button>
-                            )
-                            : formatValue(row[field])}
-                        </td>
-                      ))}
+                              )
+                              : isPivotValue
+                                ? <span className="preview-value-text" title={displayValue}>{displayValue}</span>
+                                : displayValue}
+                          </td>
+                        )
+                      })}
                     </tr>
                   )
                 })}
